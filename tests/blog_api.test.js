@@ -3,16 +3,29 @@ const supertest = require('supertest')
 const app = require('../app')
 const api = supertest(app)
 const Blog = require('../models/blog')
+const User = require('../models/user')
 const helper = require('./test_helper')
+
+const newUserToken = async () => {
+  const newUser = {
+    "username": "automatedTestUser",
+    "name": "Automated Test User",
+    "password": "testuser"
+  }
+
+  await api.post('/api/users').send(newUser)
+  const loginDetails = await api.post('/api/login').send(newUser)
+  return loginDetails.body.token
+}
 
 beforeEach(async () => {
   await Blog.deleteMany({})
+  await User.deleteMany({})
   const blogObjects = helper.initialBlogs.map(blog => new Blog(blog))
   const promiseArray = blogObjects.map(blog => blog.save())
   await Promise.all(promiseArray)
 })
 
-// exercise 4.8
 test('correct ammount of blog posts are returned in json format', async () => {
   const response = await api
     .get('/api/blogs')
@@ -22,13 +35,11 @@ test('correct ammount of blog posts are returned in json format', async () => {
   expect(response.body).toHaveLength(helper.initialBlogs.length)
 })
 
-// 4.9
 test('_id is defined', async () => {
   const response = await api.get('/api/blogs')
   expect(response.body[0].id).toBeDefined()
 })
 
-// 4.10
 test('a blog can be added', async () => {
   const newBlog = {
     title: "Best ways to make money online",
@@ -37,8 +48,11 @@ test('a blog can be added', async () => {
     likes: 9898
   }
 
+  const token = await newUserToken()
+
   await api
     .post('/api/blogs')
+    .set('Authorization', `bearer ${token}`)
     .send(newBlog)
     .expect(201)
     .expect('Content-Type', /application\/json/)
@@ -50,7 +64,19 @@ test('a blog can be added', async () => {
   expect(title).toContain('Best ways to make money online')
 })
 
-// 4.11
+test('adding blog fails if token not provided', async () => {
+  const newBlog = {
+    title: "Best ways to make money online",
+    author: "overnight",
+    url: "www.spam.com",
+    likes: 9898
+  }
+  await api
+    .post('/api/blogs')
+    .send(newBlog)
+    .expect(401)
+})
+
 test('if likes missing, defaults to 0', async () => {
   const newBlog = {
     title: "wikipedia",
@@ -58,11 +84,15 @@ test('if likes missing, defaults to 0', async () => {
     url: "www.wikipedia.com",
   }
 
-  const response = await api.post('/api/blogs').send(newBlog)
+  const token = await newUserToken()
+
+  const response = await api
+    .post('/api/blogs')
+    .set('Authorization', `bearer ${token}`)
+    .send(newBlog)
   expect(response.body.likes).toBe(0)
 })
 
-// 4.12
 test('if title & url are missing 400 returned', async () => {
   const newBlog = {
     // title: "miniclip",
@@ -71,7 +101,13 @@ test('if title & url are missing 400 returned', async () => {
     likes: 95815
   }
 
-  await api.post('/api/blogs').send(newBlog).expect(400)
+  const token = await newUserToken()
+
+  await api
+    .post('/api/blogs')
+    .set('Authorization', `bearer ${token}`)
+    .send(newBlog)
+    .expect(400)
   // expect(response.body.likes).toBe(0)
 })
 

@@ -28,6 +28,18 @@ const blogsinDb = async () => {
   return blogs.map(blog => blog.toJSON())
 }
 
+// const newUserToken = async () => {
+//   const newUser = {
+//     "username": "automatedTestUser",
+//     "name": "Automated Test User",
+//     "password": "testuser"
+//   }
+
+//   await api.post('/api/users').send(newUser)
+//   const loginDetails = await api.post('/api/login').send(newUser)
+//   return loginDetails.body.token
+// }
+
 module.exports = {
   initialBlogs, blogsinDb
 }
